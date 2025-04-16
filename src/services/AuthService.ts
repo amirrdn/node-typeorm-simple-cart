@@ -32,6 +32,22 @@ export class AuthService {
     return user;
   }
 
+  private static generateAccessToken(user: User) {
+    return jwt.sign(
+      { user_id: user.id, email: user.email },
+      secretKey,
+      { expiresIn: '15m' }
+    );
+  }
+
+  private static generateRefreshToken(user: User) {
+    return jwt.sign(
+      { user_id: user.id },
+      process.env.JWT_REFRESH_SECRET_KEY as string,
+      { expiresIn: '7d' }
+    );
+  }
+
   static async login(email: string, password: string) {
     const userRepository = AppDataSource.getRepository(User);
 
@@ -45,11 +61,30 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    const token = jwt.sign({ user_id: user.id, email: user.email }, secretKey, { expiresIn: '1h' });
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken(user);
 
     return {
-      token,
+      accessToken,
+      refreshToken,
       user
     };
+  }
+
+  static async refreshToken(refreshToken: string) {
+    try {
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET_KEY as string) as any;
+      const userRepository = AppDataSource.getRepository(User);
+      const user = await userRepository.findOne({ where: { id: decoded.user_id } });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const accessToken = this.generateAccessToken(user);
+      return { accessToken };
+    } catch (error) {
+      throw new Error('Invalid refresh token');
+    }
   }
 }

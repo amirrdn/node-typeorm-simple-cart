@@ -198,15 +198,15 @@ export class TransaksiController {
         await queryRunner.startTransaction();
 
         try {
-            const id = parseInt(req.params.id);
-            const user_id = req.session?.user?.id;
-
-            if (!user_id) {
+            if (!req.user) {
                 return res.status(401).json({
-                    message: "Unauthorized: Silakan login terlebih dahulu"
+                    message: "Silakan login terlebih dahulu"
                 });
             }
 
+            const user_id = req.user.id;
+
+            const id = parseInt(req.params.id);
             const transaksi = await queryRunner.manager.findOne(Transaksi, {
                 where: { id, user_id },
                 relations: ['details', 'details.barang']
